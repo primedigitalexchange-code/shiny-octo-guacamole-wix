@@ -13,24 +13,59 @@ created in the Wix Editor:
 2. Add a product repeater with these element IDs: `#productRepeater`,
    `#productName`, `#productCategory`, `#productPrice`, `#quantityInput`, and
    `#buyButton`. The quantity input should be numeric and default to `1`.
-3. Add a live-blog repeater with IDs `#liveBlogRepeater`, `#postTitle`,
+3. Add shipping form inputs with IDs `#shippingName`, `#shippingAddressLine1`,
+   `#shippingAddressLine2`, `#shippingCity`, `#shippingRegion`,
+   `#shippingPostalCode`, and `#shippingCountryCode`. Make all except address
+   line 2 required. Use a country-code dropdown restricted to the country set
+   in the backend configuration.
+4. Add a live-blog repeater with IDs `#liveBlogRepeater`, `#postTitle`,
    `#postContent`, `#postAuthor`, and `#postDate`.
-4. Add text elements with IDs `#checkoutStatus` and `#blogStatus`.
-5. Create a CMS collection named `LiveBlogPosts` with fields `title` (Text),
-   `content` (Text), `author` (Text), `publishedAt` (Date and Time), and
-   `isPublished` (Boolean). Allow site visitors to read items; reserve editing
-   permissions for site administrators. Add and publish posts by setting
-   `isPublished` to `true`. The page checks for new posts every 30 seconds.
-6. Paste [`backend/payments.jsw`](backend/payments.jsw) into the Wix site's
-   Backend section as `payments.jsw`. Configure Wix Payments and set the site's
-   currency to USD before accepting payments.
+5. Add text elements with IDs `#checkoutStatus` and `#blogStatus`.
+6. In CMS, create `LiveBlogPosts` with `title` (Text), `content` (Text),
+   `author` (Text), `publishedAt` (Date and Time), and `isPublished` (Boolean).
+   Set read permission to anyone and all write permissions to administrators.
+   Publish a post by setting `isPublished` to `true`; new posts appear within
+   30 seconds.
+7. Create `StoreOrders` with these fields and types:
+   `paymentId` (Text), `productSku` (Text), `productName` (Text),
+   `quantity` (Number), `subtotalCents` (Number), `shippingCents` (Number),
+   `taxCents` (Number), `totalCents` (Number), `currency` (Text),
+   `shippingName` (Text), `shippingAddressLine1` (Text),
+   `shippingAddressLine2` (Text), `shippingCity` (Text), `shippingRegion`
+   (Text), `shippingPostalCode` (Text), `shippingCountryCode` (Text),
+   `paymentStatus` (Text), `fulfillmentStatus` (Text), `transactionId` (Text),
+   `createdAt` (Date and Time), `paidAt` (Date and Time), `trackingNumber`
+   (Text), `trackingUrl` (URL), and `fulfilledAt` (Date and Time). Set all
+   collection permissions to administrators only; backend code writes using
+   server permissions.
+8. Copy [`backend/payments.jsw`](backend/payments.jsw) and
+   [`backend/events.js`](backend/events.js) into the site's Backend section.
+   Configure Wix Payments and set the site's currency to USD. The `wixPay`
+   payment-update event runs on the published site, not in Preview.
 
-The backend is the source of truth for the catalog and prices. Checkout accepts
-only listed product IDs and integer quantities from 1 to 10; the browser never
-sets the amount. The displayed prices are sample USD prices and can be changed
-in the backend catalog before launch. The payment flow does not calculate tax
-or shipping or create fulfillment records; configure those separately for the
-store's needs.
+### Tax, shipping, and fulfillment configuration
+
+Checkout is intentionally disabled until the merchant configures
+`STORE_COUNTRY_CODE`, `TAX_RATE_BPS`, `SHIPPING_FEE_CENTS`, and (if applicable)
+`SHIPPING_TAXABLE` at the top of `backend/payments.jsw`. Use the destination
+country's two-letter ISO code, tax rate in basis points (for example, 825 means
+8.25%), and shipping charge in cents (for example, 1500 means $15.00). The
+backend calculates and charges the subtotal, flat shipping charge, and
+configured flat tax; the browser cannot set prices or totals. Product prices
+below are sample USD prices. Confirm tax treatment and shipping charges for
+every destination with a qualified tax professional before enabling checkout.
+This starter supports one country-wide flat tax rate and one flat shipping
+charge; it does not calculate destination-specific/state/local taxes, tax
+nexus, shipping zones, or carrier rates. For those requirements, use Wix Stores
+and its configured checkout/tax/shipping services instead of this basic Wix Pay
+flow.
+
+After a successful payment event, the backend marks its private `StoreOrders`
+record `Paid` and `Unfulfilled`. In the Wix CMS, an administrator should pack
+and ship the order, then set `fulfillmentStatus` to `Fulfilled` and fill in
+`trackingNumber`, `trackingUrl`, and `fulfilledAt`. Failed or canceled payment
+events update payment status without marking an order fulfilled. Add Wix
+Automations separately if customer or staff email notifications are needed.
 
 ## Sample catalog
 

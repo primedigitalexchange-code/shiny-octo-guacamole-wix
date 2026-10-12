@@ -1,6 +1,12 @@
 import wixPayBackend from "wix-pay-backend";
+import wixData from "wix-data";
 
 const CURRENCY = "USD";
+const STORE_COUNTRY_CODE = null;
+const TAX_RATE_BPS = null;
+const SHIPPING_FEE_CENTS = null;
+const SHIPPING_TAXABLE = false;
+const ORDERS_COLLECTION = "StoreOrders";
 const PRODUCTS = {
   "silk-evening-dress": { name: "Silk Evening Dress", category: "Clothing", priceCents: 48500 },
   "leather-heels": { name: "Italian Leather Heels", category: "Shoes", priceCents: 36500 },
@@ -19,7 +25,17 @@ export function getProductCatalog() {
   }));
 }
 
-export async function createProductPayment(sku, quantity = 1) {
+export async function createProductPayment(sku, quantity, shippingAddress) {
+  if (
+    !STORE_COUNTRY_CODE ||
+    !Number.isInteger(TAX_RATE_BPS) ||
+    TAX_RATE_BPS < 0 ||
+    !Number.isInteger(SHIPPING_FEE_CENTS) ||
+    SHIPPING_FEE_CENTS < 0
+  ) {
+    throw new Error("Store tax, shipping, and country settings are not configured.");
+  }
+
   if (typeof sku !== "string" || !Object.prototype.hasOwnProperty.call(PRODUCTS, sku)) {
     throw new Error("This product is not available.");
   }
@@ -28,12 +44,83 @@ export async function createProductPayment(sku, quantity = 1) {
     throw new Error("Choose a quantity from 1 to 10.");
   }
 
-  const product = PRODUCTS[sku];
-  const price = product.priceCents / 100;
+  const address = validateShippingAddress(shippingAddress);
+  if (address.countryCode !== STORE_COUNTRY_CODE) {
+    throw new Error("We cannot currently ship to that country.");
+  }
 
-  return wixPayBackend.createPayment({
-    amount: (product.priceCents * quantity) / 100,
+  const product = PRODUCTS[sku];
+  const subtotalCents = product.priceCents * quantity;
+  const shippingCents = SHIPPING_FEE_CENTS;
+  const taxableCents = subtotalCents + (SHIPPING_TAXABLE ? shippingCents : 0);
+  const taxCents = Math.round((taxableCents * TAX_RATE_BPS) / 10000);
+  const totalCents = subtotalCents + shippingCents + taxCents;
+  const items = [{ name: product.name, price: product.priceCents / 100, quantity }];
+  if (shippingCents > 0) {
+    items.push({ name: "Shipping", price: shippingCents / 100, quantity: 1 });
+  }
+  if (taxCents > 0) {
+    items.push({ name: "Sales tax", price: taxCents / 100, quantity: 1 });
+  }
+
+  const payment = await wixPayBackend.createPayment({
+    amount: totalCents / 100,
     currency: CURRENCY,
-    items: [{ name: product.name, price, quantity }],
+    items,
   });
+
+  await wixData.insert(
+    ORDERS_COLLECTION,
+    {
+      paymentId: payment.id,
+      productSku: sku,
+      productName: product.name,
+      quantity,
+      subtotalCents,
+      shippingCents,
+      taxCents,
+      totalCents,
+      currency: CURRENCY,
+      shippingName: address.name,
+      shippingAddressLine1: address.addressLine1,
+      shippingAddressLine2: address.addressLine2,
+      shippingCity: address.city,
+      shippingRegion: address.region,
+      shippingPostalCode: address.postalCode,
+      shippingCountryCode: address.countryCode,
+      paymentStatus: "Pending",
+      fulfillmentStatus: "Awaiting payment",
+      createdAt: new Date(),
+    },
+    { suppressAuth: true },
+  );
+
+  return payment;
+}
+
+function validateShippingAddress(address) {
+  const requiredFields = ["name", "addressLine1", "city", "region", "postalCode", "countryCode"];
+  if (
+    !address ||
+    typeof address !== "object" ||
+    requiredFields.some(
+      (field) => typeof address[field] !== "string" || !address[field].trim() || address[field].length > 120,
+    )
+  ) {
+    throw new Error("Enter a complete shipping address.");
+  }
+
+  if (address.addressLine2 !== undefined && typeof address.addressLine2 !== "string") {
+    throw new Error("Enter a valid shipping address.");
+  }
+
+  return {
+    name: address.name.trim(),
+    addressLine1: address.addressLine1.trim(),
+    addressLine2: (address.addressLine2 || "").trim().slice(0, 120),
+    city: address.city.trim(),
+    region: address.region.trim(),
+    postalCode: address.postalCode.trim(),
+    countryCode: address.countryCode.trim().toUpperCase(),
+  };
 }

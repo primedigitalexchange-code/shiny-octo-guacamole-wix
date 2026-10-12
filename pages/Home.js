@@ -58,7 +58,16 @@ async function beginCheckout($item, product) {
   $w("#checkoutStatus").text = "";
 
   try {
-    const payment = await createProductPayment(product._id, quantity);
+    const payment = await createProductPayment(product._id, quantity, {
+      name: $w("#shippingName").value,
+      addressLine1: $w("#shippingAddressLine1").value,
+      addressLine2: $w("#shippingAddressLine2").value,
+      city: $w("#shippingCity").value,
+      region: $w("#shippingRegion").value,
+      postalCode: $w("#shippingPostalCode").value,
+      countryCode: $w("#shippingCountryCode").value,
+    });
+    $w("#checkoutStatus").text = `Order total: ${formatPrice(payment.amount)}. Opening secure checkout…`;
     const result = await wixPay.startPayment(payment.id);
     const status = String(result.status || "").toLowerCase();
     $w("#checkoutStatus").text =
@@ -68,7 +77,12 @@ async function beginCheckout($item, product) {
           ? "Your payment is pending."
           : "Checkout was not completed.";
   } catch (error) {
-    $w("#checkoutStatus").text = "Checkout could not be started. Please try again.";
+    $w("#checkoutStatus").text =
+      error && error.message === "We cannot currently ship to that country."
+        ? "We cannot currently ship to that country."
+        : error && error.message === "Enter a complete shipping address."
+          ? "Complete all required shipping address fields."
+          : "Checkout could not be started. Check your details and try again.";
   } finally {
     button.label = "Buy now";
     button.enable();
