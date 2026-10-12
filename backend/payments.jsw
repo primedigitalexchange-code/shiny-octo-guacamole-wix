@@ -1,0 +1,39 @@
+import wixPayBackend from "wix-pay-backend";
+
+const CURRENCY = "USD";
+const PRODUCTS = {
+  "silk-evening-dress": { name: "Silk Evening Dress", category: "Clothing", priceCents: 48500 },
+  "leather-heels": { name: "Italian Leather Heels", category: "Shoes", priceCents: 36500 },
+  "gold-drop-earrings": { name: "18k Gold Drop Earrings", category: "Earrings", priceCents: 24500 },
+  "signature-handbag": { name: "Signature Leather Handbag", category: "Accessories", priceCents: 129500 },
+  "cashmere-coat": { name: "Cashmere Wrap Coat", category: "Clothing", priceCents: 89500 },
+  "silk-sunglasses": { name: "Silk & Acetate Sunglasses", category: "Accessories", priceCents: 19500 },
+};
+
+export function getProductCatalog() {
+  return Object.entries(PRODUCTS).map(([sku, product]) => ({
+    _id: sku,
+    name: product.name,
+    category: product.category,
+    price: product.priceCents / 100,
+  }));
+}
+
+export async function createProductPayment(sku, quantity = 1) {
+  if (typeof sku !== "string" || !Object.prototype.hasOwnProperty.call(PRODUCTS, sku)) {
+    throw new Error("This product is not available.");
+  }
+
+  if (!Number.isInteger(quantity) || quantity < 1 || quantity > 10) {
+    throw new Error("Choose a quantity from 1 to 10.");
+  }
+
+  const product = PRODUCTS[sku];
+  const price = product.priceCents / 100;
+
+  return wixPayBackend.createPayment({
+    amount: (product.priceCents * quantity) / 100,
+    currency: CURRENCY,
+    items: [{ name: product.name, price, quantity }],
+  });
+}
