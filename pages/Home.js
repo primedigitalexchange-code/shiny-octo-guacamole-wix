@@ -1,6 +1,6 @@
 import wixData from "wix-data";
-import wixPay from "wix-pay-frontend";
-import { createProductPayment, getProductCatalog } from "backend/payments";
+import wixLocationFrontend from "wix-location-frontend";
+import { getStoreProducts } from "backend/storefront";
 
 const CURRENCY = "USD";
 const BLOG_REFRESH_MS = 30000;
@@ -26,8 +26,10 @@ $w.onReady(() => {
     $item("#productName").text = product.name;
     $item("#productCategory").text = product.category;
     $item("#productPrice").text = formatPrice(product.price);
-    $item("#buyButton").label = "Buy now";
-    $item("#buyButton").onClick(() => beginCheckout($item, product));
+    $item("#buyButton").label = "View product";
+    $item("#buyButton").onClick(() => {
+      wixLocationFrontend.to(`/product-page/${encodeURIComponent(product.slug)}`);
+    });
   });
   loadProductCatalog();
 
@@ -44,48 +46,13 @@ $w.onReady(() => {
 
 async function loadProductCatalog() {
   try {
-    $w("#productRepeater").data = await getProductCatalog();
+    const products = await getStoreProducts();
+    $w("#productRepeater").data = products;
+    $w("#checkoutStatus").text = products.length
+      ? "Taxes, shipping options, and checkout are provided by Wix Stores."
+      : "No published physical products are available yet.";
   } catch (error) {
-    $w("#checkoutStatus").text = "The collection is temporarily unavailable. Please try again later.";
-  }
-}
-
-async function beginCheckout($item, product) {
-  const button = $item("#buyButton");
-  const quantity = Number($item("#quantityInput").value);
-  button.disable();
-  button.label = "Preparing checkout…";
-  $w("#checkoutStatus").text = "";
-
-  try {
-    const payment = await createProductPayment(product._id, quantity, {
-      name: $w("#shippingName").value,
-      addressLine1: $w("#shippingAddressLine1").value,
-      addressLine2: $w("#shippingAddressLine2").value,
-      city: $w("#shippingCity").value,
-      region: $w("#shippingRegion").value,
-      postalCode: $w("#shippingPostalCode").value,
-      countryCode: $w("#shippingCountryCode").value,
-    });
-    $w("#checkoutStatus").text = `Order total: ${formatPrice(payment.amount)}. Opening secure checkout…`;
-    const result = await wixPay.startPayment(payment.id);
-    const status = String(result.status || "").toLowerCase();
-    $w("#checkoutStatus").text =
-      status === "successful"
-        ? "Payment received. Thank you for your order."
-        : status === "pending"
-          ? "Your payment is pending."
-          : "Checkout was not completed.";
-  } catch (error) {
-    $w("#checkoutStatus").text =
-      error && error.message === "We cannot currently ship to that country."
-        ? "We cannot currently ship to that country."
-        : error && error.message === "Enter a complete shipping address."
-          ? "Complete all required shipping address fields."
-          : "Checkout could not be started. Check your details and try again.";
-  } finally {
-    button.label = "Buy now";
-    button.enable();
+    $w("#checkoutStatus").text = "The store catalog is temporarily unavailable. Please try again later.";
   }
 }
 

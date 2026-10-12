@@ -1,0 +1,20 @@
+import { products } from "wix-stores.v2";
+
+export async function getStoreProducts() {
+  const result = await products
+    .queryProducts()
+    .eq("visible", true)
+    .limit(100)
+    .find();
+
+  return result.items
+    .filter((product) => product.slug && String(product.productType).toLowerCase() === "physical")
+    .map((product) => ({
+      _id: product._id,
+      slug: product.slug,
+      name: product.name,
+      category: "Luxury collection",
+      price: Number(product.priceData && product.priceData.price),
+    }))
+    .filter((product) => Number.isFinite(product.price));
+}
