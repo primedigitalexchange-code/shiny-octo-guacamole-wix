@@ -95,7 +95,7 @@ export async function createProductPayment(sku, quantity, shippingAddress) {
     { suppressAuth: true },
   );
 
-  return payment;
+  return { id: payment.id, amount: totalCents / 100 };
 }
 
 function validateShippingAddress(address) {
