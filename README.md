@@ -45,20 +45,23 @@ created in the Wix Editor:
 
 ### Tax, shipping, and fulfillment configuration
 
-Checkout is intentionally disabled until the merchant configures
-`STORE_COUNTRY_CODE`, `TAX_RATE_BPS`, `SHIPPING_FEE_CENTS`, and (if applicable)
-`SHIPPING_TAXABLE` at the top of `backend/payments.jsw`. Use the destination
-country's two-letter ISO code, tax rate in basis points (for example, 825 means
-8.25%), and shipping charge in cents (for example, 1500 means $15.00). The
-backend calculates and charges the subtotal, flat shipping charge, and
-configured flat tax; the browser cannot set prices or totals. Product prices
-below are sample USD prices. Confirm tax treatment and shipping charges for
-every destination with a qualified tax professional before enabling checkout.
-This starter supports one country-wide flat tax rate and one flat shipping
-charge; it does not calculate destination-specific/state/local taxes, tax
-nexus, shipping zones, or carrier rates. For those requirements, use Wix Stores
-and its configured checkout/tax/shipping services instead of this basic Wix Pay
-flow.
+The current sample configuration uses `STORE_COUNTRY_CODE = "US"`,
+`TAX_RATE_TENTHS_BPS = 8875` (8.875%), `SHIPPING_FEE_CENTS = 2000` ($20.00),
+and `SHIPPING_TAXABLE = true`. The rate is represented in tenths of a basis
+point so 8.875% is exact. The backend calculates and charges the subtotal, flat
+shipping charge, and configured flat tax; the browser cannot set prices or
+totals. Product prices below are sample USD prices.
+
+**This is a merchant-provided flat-rate configuration, not a tax-compliant
+calculation for every U.S. destination.** The code currently accepts shipping
+addresses in any U.S. state but applies 8.875% everywhere. Actual sales tax
+rates and clothing/shipping tax treatment can vary by state, county, city,
+product, and destination; 8.875% should not be assumed valid for “all regions.”
+Before taking orders, confirm tax collection obligations, taxability, and
+shipping charges with a qualified tax professional. For destination-specific
+rates, exemptions, tax nexus, shipping zones, and carrier rates, use Wix Stores
+with the appropriate tax and shipping configuration instead of this basic Wix
+Pay flow.
 
 After a successful payment event, the backend marks its private `StoreOrders`
 record `Paid` and `Unfulfilled`. In the Wix CMS, an administrator should pack

@@ -2,10 +2,10 @@ import wixPayBackend from "wix-pay-backend";
 import wixData from "wix-data";
 
 const CURRENCY = "USD";
-const STORE_COUNTRY_CODE = null;
-const TAX_RATE_BPS = null;
-const SHIPPING_FEE_CENTS = null;
-const SHIPPING_TAXABLE = false;
+const STORE_COUNTRY_CODE = "US";
+const TAX_RATE_TENTHS_BPS = 8875;
+const SHIPPING_FEE_CENTS = 2000;
+const SHIPPING_TAXABLE = true;
 const ORDERS_COLLECTION = "StoreOrders";
 const PRODUCTS = {
   "silk-evening-dress": { name: "Silk Evening Dress", category: "Clothing", priceCents: 48500 },
@@ -28,8 +28,8 @@ export function getProductCatalog() {
 export async function createProductPayment(sku, quantity, shippingAddress) {
   if (
     !STORE_COUNTRY_CODE ||
-    !Number.isInteger(TAX_RATE_BPS) ||
-    TAX_RATE_BPS < 0 ||
+    !Number.isInteger(TAX_RATE_TENTHS_BPS) ||
+    TAX_RATE_TENTHS_BPS < 0 ||
     !Number.isInteger(SHIPPING_FEE_CENTS) ||
     SHIPPING_FEE_CENTS < 0
   ) {
@@ -53,7 +53,7 @@ export async function createProductPayment(sku, quantity, shippingAddress) {
   const subtotalCents = product.priceCents * quantity;
   const shippingCents = SHIPPING_FEE_CENTS;
   const taxableCents = subtotalCents + (SHIPPING_TAXABLE ? shippingCents : 0);
-  const taxCents = Math.round((taxableCents * TAX_RATE_BPS) / 10000);
+  const taxCents = Math.round((taxableCents * TAX_RATE_TENTHS_BPS) / 100000);
   const totalCents = subtotalCents + shippingCents + taxCents;
   const items = [{ name: product.name, price: product.priceCents / 100, quantity }];
   if (shippingCents > 0) {
